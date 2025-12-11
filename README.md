@@ -1,4 +1,4 @@
-# 🤟 Real-Time Sign Language Recognition System
+#  Real-Time Sign Language Recognition System
 
 A deep learning-powered system for real-time American Sign Language (ASL) alphabet recognition using computer vision and LSTM networks.
 

@@ -21,7 +21,7 @@ A deep learning-powered system for real-time American Sign Language (ASL) alphab
 Below are real-time demos of the system recognizing complete words using hand gestures.
 
 ### 🟡 Example : 
-![HELLO Demo](demo)
+![HELLO Demo](demo.mp4)
 
 
 

@@ -16,4 +16,13 @@ A deep learning-powered system for real-time American Sign Language (ASL) alphab
 
 **⭐ If you find this project useful, please consider giving it a star!**
 
+## 🎥 Live Demo – Sign Language Recognition
+
+Below are real-time demos of the system recognizing complete words using hand gestures.
+
+### 🟡 Example : 
+![HELLO Demo](demo)
+
+
+
 Made with ❤️ for accessibility and inclusion

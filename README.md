@@ -23,6 +23,4 @@ Below are real-time demos of the system recognizing complete words using hand ge
 ### 🟡 Example : 
 [Demo](demo.mp4)
 
-
-
-Made with ❤️ for accessibility and inclusion
+ 

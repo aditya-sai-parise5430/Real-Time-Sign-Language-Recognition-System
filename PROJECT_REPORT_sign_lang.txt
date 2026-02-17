@@ -1,0 +1,352 @@
+📘 PROJECT REPORT
+Real-Time Sign Language Recognition System using MediaPipe & LSTM
+1. Introduction
+
+Sign language is a primary means of communication for the hearing- and speech-impaired community. However, communication barriers exist between sign language users and people unfamiliar with sign language.
+
+This project aims to bridge that gap by developing a real-time Sign Language Recognition System that:
+
+Detects hand gestures through a camera
+
+Recognizes ASL (American Sign Language) alphabets (A–Z)
+
+Builds meaningful words from continuous gestures
+
+Displays confidence metrics for prediction reliability
+
+Provides a premium, interactive user interface
+
+The system uses computer vision and deep learning techniques for accurate and real-time performance.
+
+2. Problem Statement
+
+Traditional sign language translation requires:
+
+Human interpreters
+
+Specialized hardware (gloves, sensors)
+
+These approaches are:
+
+Expensive
+
+Not scalable
+
+Not always available
+
+Objective
+
+To create a camera-based, software-only, real-time sign language recognition system that runs on a normal laptop using:
+
+Webcam
+
+Python
+
+Open-source libraries
+
+3. Technology Stack
+Category	Technology
+Programming Language	Python
+Computer Vision	OpenCV
+Hand Tracking	MediaPipe
+Deep Learning	TensorFlow / Keras
+Model Type	LSTM (Long Short-Term Memory)
+UI Rendering	OpenCV (custom HUD)
+Platform	Windows
+Camera	Built-in / External USB webcam
+Version Control	GitHub
+4. Overall System Architecture
+Camera Input
+     ↓
+Frame Capture (OpenCV)
+     ↓
+Hand Detection (MediaPipe)
+     ↓
+21 Hand Landmarks (x, y, z)
+     ↓
+Sequence Buffer (30 frames)
+     ↓
+LSTM Model
+     ↓
+Letter Prediction (A–Z)
+     ↓
+Confidence Filtering
+     ↓
+Word Builder
+     ↓
+UI Display + Confidence History
+
+5. Dataset Collection (From Scratch – Skipped Step Explained)
+5.1 What Data is Required?
+
+For each ASL letter (A–Z):
+
+Multiple gesture samples
+
+Each sample = sequence of 30 frames
+
+Each frame = 21 landmarks × (x, y, z)
+
+So:
+
+One frame  → 63 values
+One sample → 30 × 63 = 1890 values
+
+5.2 How Data is Collected
+
+A data collection script:
+
+Opens webcam
+
+Uses MediaPipe to detect hand landmarks
+
+Saves landmark sequences as .npy files
+
+Organizes them by letter class
+
+Example structure:
+
+dataset/
+ ├── A/
+ │   ├── sample_1.npy
+ │   ├── sample_2.npy
+ ├── B/
+ ├── C/
+ ...
+ └── Z/
+
+
+📌 You skipped this step because your senior already provided a 4.9 GB pre-collected dataset, which is common in real projects.
+
+6. Data Preprocessing
+
+Steps applied:
+
+Load .npy landmark files
+
+Ensure uniform sequence length (30 frames)
+
+Normalize values if required
+
+Assign numerical labels:
+
+A → 0, B → 1, ..., Z → 25
+
+
+Split dataset:
+
+Training set
+
+Validation set
+
+7. Model Design (LSTM)
+7.1 Why LSTM?
+
+Sign language is temporal:
+
+A single frame is insufficient
+
+Gesture meaning depends on motion over time
+
+LSTM is ideal for:
+
+Sequence learning
+
+Time-series data
+
+Gesture recognition
+
+7.2 Model Architecture (Simplified)
+Input: (30, 63)
+↓
+LSTM Layer
+↓
+LSTM Layer
+↓
+Dense Layer
+↓
+Softmax (26 outputs)
+
+
+Output: Probability distribution over A–Z
+
+Highest probability → predicted letter
+
+8. Model Training (Skipped but Explained)
+
+Training process:
+
+Feed landmark sequences into model
+
+Use categorical cross-entropy loss
+
+Optimizer: Adam
+
+Train for multiple epochs
+
+Save:
+
+Model architecture (.json)
+
+Weights (.h5)
+
+You used pre-trained models like:
+
+model33k.json
+
+newmodel33k.h5
+
+✔ This is standard industry practice (transfer learning / reuse).
+
+9. Real-Time Inference Pipeline
+9.1 Camera Input
+
+OpenCV captures frames from webcam
+
+Supports internal & external USB cameras
+
+Frame resized to fit fullscreen UI
+
+9.2 Hand Detection
+
+MediaPipe detects:
+
+Palm
+
+21 landmarks
+
+Outputs (x, y, z) coordinates
+
+9.3 Sequence Management
+
+Each frame’s landmarks added to buffer
+
+Buffer size = 30 frames
+
+Sliding window approach
+
+9.4 Prediction Logic
+
+LSTM predicts probabilities
+
+Prediction accepted only if:
+
+Same letter predicted for 12 consecutive frames
+
+Confidence ≥ 0.9
+
+This avoids false positives and flickering output.
+
+10. Word Builder Logic
+Controls:
+Key	Function
+SPACE	Add detected letter
+BACKSPACE	Remove last letter
+ENTER	Clear word
+Q	Exit application
+Logic:
+
+Prevents duplicate letters
+
+Allows user-controlled word formation
+
+Mimics natural typing behavior
+
+11. Confidence Monitoring
+11.1 Confidence Percentage Bar
+
+Shows confidence of current prediction
+
+Color-coded:
+
+High confidence → Yellow/Green
+
+Low confidence → Red
+
+11.2 Confidence History Graph
+
+Displays confidence trend over time
+
+Helps analyze:
+
+Model stability
+
+Prediction consistency
+
+Label:
+
+CONFIDENCE HISTORY
+
+12. User Interface (Premium HUD)
+Features:
+
+Cyberpunk-style UI
+
+Yellow premium color theme
+
+Scalable layout (works on any resolution)
+
+Fullscreen-safe rendering
+
+ROI (detection box) enlarged by ~1 cm on all sides
+
+13. Exit & Controls
+
+On-screen instructions
+
+Keyboard-based exit (Q)
+
+Clean resource release:
+
+Camera released
+
+Windows destroyed safely
+
+14. Challenges Faced & Solutions
+Challenge	Solution
+Camera not detected	Auto camera index scanning
+Fullscreen black area	Manual frame resizing
+UI overlapping	Resolution-based scaling
+False predictions	Confidence + consistency filter
+External webcam issues	Backend fallback (DSHOW/MSMF)
+15. Results
+
+Real-time ASL alphabet recognition
+
+Stable predictions with high confidence
+
+Smooth word construction
+
+Visually rich, professional UI
+
+Demo videos successfully embedded in GitHub README
+
+16. Applications
+
+Assistive technology for deaf/mute communication
+
+Educational tools
+
+Human–computer interaction
+
+Gesture-controlled systems
+
+17. Future Enhancements
+
+Word-level & sentence-level recognition
+
+Text-to-speech output
+
+Multi-hand detection
+
+Mobile application
+
+Language expansion (ISL, BSL)
+
+18. Conclusion
+
+This project successfully demonstrates how computer vision and deep learning can be combined to solve real-world accessibility problems. The system is efficient, scalable, and deployable on consumer hardware.
+
+🎤 FINAL INTERVIEW ONE-LINER (VERY IMPORTANT)
+
+“I built a real-time sign language recognition system using MediaPipe for hand tracking and an LSTM model for temporal gesture classification, with confidence-based filtering and a premium UI for usability.”

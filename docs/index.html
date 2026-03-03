@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ASL Sign Language Recognition</title>
+  <meta name="description" content="Pure Browser ASL recognition. No server needed." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;900&display=swap" rel="stylesheet" />
+
+  <!-- MediaPipe / TensorFlow Dependencies -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+  <style>
+    /* ===== CSS VARIABLES ===== */
+    :root {
+      --bg: #0a0a0f;
+      --surface: #13131f;
+      --surface2: #1c1c2e;
+      --primary: #ffd700;
+      --accent: #00e5ff;
+      --success: #00e676;
+      --danger: #ff5252;
+      --text: #f0f0f8;
+      --muted: #7a7a9a;
+      --radius: 18px;
+      --glow: 0 0 24px rgba(255, 215, 0, .35);
+      --glow-acc: 0 0 24px rgba(0, 229, 255, .35);
+      --font-base: 1rem;
+    }
+
+    .hc {
+      --bg: #000;
+      --surface: #111;
+      --surface2: #222;
+      --primary: #fff700;
+      --accent: #00ffff;
+      --success: #00ff00;
+      --danger: #ff0000;
+      --text: #ffffff;
+      --muted: #aaaaaa;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      font-size: var(--font-base);
+    }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 2rem;
+      background: var(--surface);
+      border-bottom: 1px solid rgba(255, 215, 0, .15);
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+    }
+
+    .logo-text {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .logo-sub {
+      font-size: .75rem;
+      color: var(--muted);
+    }
+
+    .controls {
+      display: flex;
+      gap: .6rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    /* Buttons */
+    .btn {
+      padding: .5rem 1.1rem;
+      border-radius: 50px;
+      border: 1.5px solid var(--primary);
+      background: transparent;
+      color: var(--primary);
+      font-family: 'Outfit', sans-serif;
+      font-size: .85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+    }
+
+    .btn:hover {
+      background: var(--primary);
+      color: #000;
+      box-shadow: var(--glow);
+    }
+
+    .btn.active {
+      background: var(--primary);
+      color: #000;
+    }
+
+    .btn-accent {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .btn-accent:hover {
+      background: var(--accent);
+      color: #000;
+      box-shadow: var(--glow-acc);
+    }
+
+    .btn-success {
+      border-color: var(--success);
+      color: var(--success);
+    }
+
+    .btn-success:hover {
+      background: var(--success);
+      color: #000;
+    }
+
+    .btn-danger {
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+
+    .btn-danger:hover {
+      background: var(--danger);
+      color: #fff;
+    }
+
+    /* Main Grid */
+    main {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 1.25rem;
+      padding: 1.25rem 2rem;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    @media (max-width: 900px) {
+      main {
+        grid-template-columns: 1fr;
+        padding: 1rem;
+      }
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid rgba(255, 215, 0, .1);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+    }
+
+    .card-title {
+      font-size: .75rem;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 1rem;
+    }
+
+    /* Camera Feed */
+    .camera-wrapper {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4/3;
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: #000;
+    }
+
+    #videoEl {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+      z-index: 1;
+    }
+
+    #canvasEl {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .cam-status {
+      position: absolute;
+      top: .8rem;
+      left: .8rem;
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+      background: rgba(0, 0, 0, .6);
+      padding: .3rem .75rem;
+      border-radius: 50px;
+      font-size: .8rem;
+      z-index: 10;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--danger);
+    }
+
+    .dot.active {
+      background: var(--success);
+    }
+
+    /* Right Column UI */
+    .right-col {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .letter-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1.5rem 1rem;
+      background: var(--surface);
+      border: 1px solid rgba(255, 215, 0, .1);
+      border-radius: var(--radius);
+      text-align: center;
+    }
+
+    .letter-ring {
+      position: relative;
+      width: 160px;
+      height: 160px;
+      margin-bottom: 1rem;
+    }
+
+    .letter-ring svg {
+      position: absolute;
+      inset: 0;
+      transform: rotate(-90deg);
+    }
+
+    .ring-bg {
+      fill: none;
+      stroke: var(--surface2);
+      stroke-width: 10;
+    }
+
+    .ring-fill {
+      fill: none;
+      stroke: var(--primary);
+      stroke-width: 10;
+      stroke-linecap: round;
+      stroke-dasharray: 440;
+      stroke-dashoffset: 440;
+      transition: stroke-dashoffset .3s ease;
+    }
+
+    .letter-big {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 5rem;
+      font-weight: 900;
+      color: var(--primary);
+      text-shadow: var(--glow);
+      transition: transform .2s;
+    }
+
+    .letter-big.pop {
+      transform: scale(1.2);
+    }
+
+    .conf-value {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: .5rem;
+    }
+
+    .hand-badge {
+      padding: .25rem .8rem;
+      border-radius: 50px;
+      font-size: .8rem;
+      background: rgba(0, 230, 118, .15);
+      color: var(--success);
+      border: 1px solid rgba(0, 230, 118, .3);
+    }
+
+    .hand-badge.no-hand {
+      background: rgba(255, 82, 82, .1);
+      color: var(--danger);
+      border-color: rgba(255, 82, 82, .3);
+    }
+
+    /* Word Builder */
+    .word-display {
+      min-height: 70px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: var(--primary);
+      letter-spacing: 2px;
+      word-break: break-all;
+      text-align: center;
+      padding: .5rem;
+      background: var(--surface2);
+      border-radius: 12px;
+      margin-bottom: .75rem;
+      text-shadow: var(--glow);
+    }
+
+    .word-actions {
+      display: flex;
+      gap: .5rem;
+      flex-wrap: wrap;
+    }
+
+    /* Overlays */
+    #loadingOverlay {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      gap: 1rem;
+      transition: opacity .5s;
+    }
+
+    .spinner {
+      width: 60px;
+      height: 60px;
+      border: 4px solid var(--surface2);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="loadingOverlay">
+    <div class="spinner"></div>
+    <div style="color:var(--muted)">Loading AI Models...</div>
+    <div id="loadingStatus" style="font-size:0.8rem; color:var(--primary)">Initializing...</div>
+  </div>
+
+  <header>
+    <div class="logo">
+      <span style="font-size:2rem">🤟</span>
+      <div>
+        <div class="logo-text">ASL Recognition</div>
+        <div class="logo-sub">Pure Browser Edition</div>
+      </div>
+    </div>
+    <div class="controls">
+      <button class="btn" id="hcBtn">🌗 Contrast</button>
+      <button class="btn btn-accent" id="ttsBtn">🔊 Speech</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="card">
+      <div class="card-title">📷 Camera Feed</div>
+      <div class="camera-wrapper">
+        <video id="videoEl" playsinline autoplay></video>
+        <canvas id="canvasEl"></canvas>
+        <div class="cam-status">
+          <div class="dot" id="camDot"></div> Live Inference
+        </div>
+      </div>
+    </section>
+
+    <div class="right-col">
+      <div class="letter-card">
+        <div class="card-title">✋ Detected Letter</div>
+        <div class="letter-ring">
+          <svg viewBox="0 0 160 160">
+            <circle class="ring-bg" cx="80" cy="80" r="70" />
+            <circle class="ring-fill" id="ringFill" cx="80" cy="80" r="70" />
+          </svg>
+          <div class="letter-big" id="letterDisplay">—</div>
+        </div>
+        <div class="conf-value" id="confDisplay">0%</div>
+        <div class="hand-badge no-hand" id="handBadge">🖐 No hand detected</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📝 Word Builder</div>
+        <div class="word-display" id="wordDisplay"></div>
+        <div class="word-actions">
+          <button class="btn" id="addBtn">Add (Space)</button>
+          <button class="btn btn-danger" id="delBtn">Delete (Back)</button>
+          <button class="btn" id="clearBtn">Clear</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // --- Configuration ---
+    const SEQUENCE_LENGTH = 30;
+    const THRESHOLD = 0.82;
+    const CONSISTENCY_LEN = 8;
+    const ACTIONS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split('');
+
+    // --- State ---
+    let model = null;
+    let sequence = [];
+    let predictions = [];
+    let word = "";
+    let currentLetter = null;
+    let ttsOn = false;
+
+    // --- Elements ---
+    const videoEl = document.getElementById('videoEl');
+    const canvasEl = document.getElementById('canvasEl');
+    const ctx = canvasEl.getContext('2d');
+    const loadOverlay = document.getElementById('loadingOverlay');
+    const loadStatus = document.getElementById('loadingStatus');
+
+    async function init() {
+      try {
+        loadStatus.innerText = "Loading TensorFlow.js model...";
+        // Assuming model is inside docs/tfjs_model/model.json
+        model = await tf.loadLayersModel('./tfjs_model/model.json');
+        console.log("Model loaded successfully");
+
+        loadStatus.innerText = "Initializing MediaPipe Hands...";
+        const hands = new Hands({
+          locateFile: (file) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+          }
+        });
+
+        hands.setOptions({
+          maxNumHands: 1,
+          modelComplexity: 1,
+          minDetectionConfidence: 0.5,
+          minTrackingConfidence: 0.5
+        });
+
+        hands.onResults(onResults);
+
+        loadStatus.innerText = "Starting Camera...";
+        const camera = new Camera(videoEl, {
+          onFrame: async () => {
+            await hands.send({ image: videoEl });
+          },
+          width: 640,
+          height: 480
+        });
+        camera.start();
+
+        loadOverlay.style.opacity = '0';
+        setTimeout(() => loadOverlay.style.display = 'none', 500);
+        document.getElementById('camDot').classList.add('active');
+      } catch (e) {
+        loadStatus.innerText = "Error: " + e.message;
+        console.error(e);
+      }
+    }
+
+    async function onResults(results) {
+      // Setup canvas
+      canvasEl.width = videoEl.videoWidth;
+      canvasEl.height = videoEl.videoHeight;
+      ctx.save();
+      ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+
+      let keypoints = new Array(63).fill(0);
+      let handDetected = false;
+
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        handDetected = true;
+        const landmarks = results.multiHandLandmarks[0];
+
+        // Draw joints
+        drawConnectors(ctx, landmarks, HAND_CONNECTIONS, { color: '#00e5ff', lineWidth: 4 });
+        drawLandmarks(ctx, landmarks, { color: '#ffd700', lineWidth: 2, radius: 4 });
+
+        // ── Simulate the training ROI crop ──────────────────────────────────────
+        // Training: collectdata.py saved tight 30%×50% ROI crops → data.py ran
+        // MediaPipe on those crops → lm.x/y spanned nearly full [0,1].
+        // Browser: MediaPipe runs on full 640×480 → lm.x/y span a narrow range.
+        // Fix: find hand bounding box, pad it like the training ROI, recompute
+        // landmark positions relative to that virtual crop. Mimics training exactly.
+        const allX = landmarks.map(lm => lm.x);
+        const allY = landmarks.map(lm => lm.y);
+        let minX = Math.min(...allX), maxX = Math.max(...allX);
+        let minY = Math.min(...allY), maxY = Math.max(...allY);
+
+        // Add ~25% padding on each side to match how a hand sat inside the ROI crop
+        const padX = (maxX - minX) * 0.25;
+        const padY = (maxY - minY) * 0.25;
+        minX = Math.max(0, minX - padX); maxX = Math.min(1, maxX + padX);
+        minY = Math.max(0, minY - padY); maxY = Math.min(1, maxY + padY);
+
+        const bboxW = maxX - minX || 1;
+        const bboxH = maxY - minY || 1;
+
+        // Recompute each landmark as if MediaPipe had run on the cropped bbox image
+        keypoints = [];
+        for (let lm of landmarks) {
+          keypoints.push(
+            (lm.x - minX) / bboxW,
+            (lm.y - minY) / bboxH,
+            lm.z            // z is scale-independent depth; leave as-is
+          );
+        }
+
+
+      }
+      ctx.restore();
+
+      // Sequence buffer
+      sequence.push(keypoints);
+      if (sequence.length > SEQUENCE_LENGTH) {
+        sequence.shift();
+      }
+
+      if (sequence.length === SEQUENCE_LENGTH && model) {
+        // Run inference
+        const inputTensor = tf.tensor([sequence], [1, 30, 63]);
+        const predResult = model.predict(inputTensor);
+        const data = await predResult.data();
+
+        let maxIdx = -1;
+        let maxConf = -1;
+        for (let i = 0; i < data.length; i++) {
+          if (data[i] > maxConf) {
+            maxConf = data[i];
+            maxIdx = i;
+          }
+        }
+        tf.dispose([inputTensor, predResult]);
+
+        predictions.push(maxIdx);
+        if (predictions.length > CONSISTENCY_LEN) {
+          predictions.shift();
+        }
+
+        const allSame = predictions.length === CONSISTENCY_LEN && predictions.every(v => v === maxIdx);
+        let letter = null;
+        if (allSame && maxConf >= THRESHOLD) {
+          letter = ACTIONS[maxIdx];
+        }
+
+        updateUI(letter, maxConf, handDetected);
+      }
+    }
+
+    function updateUI(letter, conf, handDetected) {
+      currentLetter = letter;
+
+      // Update Letter
+      const letEl = document.getElementById('letterDisplay');
+      letEl.innerText = letter ? letter : "—";
+      if (letter) {
+        letEl.classList.add('pop');
+        setTimeout(() => letEl.classList.remove('pop'), 200);
+      }
+
+      // Update Confindece
+      document.getElementById('confDisplay').innerText = Math.round(conf * 100) + "%";
+      const offset = 440 - (440 * conf);
+      document.getElementById('ringFill').style.strokeDashoffset = offset;
+
+      // Update Badge
+      const badge = document.getElementById('handBadge');
+      if (handDetected) {
+        badge.innerText = "🖐 Hand detected";
+        badge.classList.remove('no-hand');
+      } else {
+        badge.innerText = "🖐 No hand detected";
+        badge.classList.add('no-hand');
+      }
+    }
+
+    // UI Triggers
+    function renderWord() { document.getElementById('wordDisplay').innerText = word; }
+
+    document.getElementById('addBtn').onclick = () => {
+      if (currentLetter) {
+        word += currentLetter;
+        renderWord();
+        if (ttsOn) speak(currentLetter);
+      }
+    };
+    document.getElementById('delBtn').onclick = () => { word = word.slice(0, -1); renderWord(); };
+    document.getElementById('clearBtn').onclick = () => { word = ""; renderWord(); };
+
+    document.addEventListener('keydown', e => {
+      if (e.code === 'Space') { e.preventDefault(); document.getElementById('addBtn').click(); }
+      if (e.code === 'Backspace') { e.preventDefault(); document.getElementById('delBtn').click(); }
+    });
+
+    document.getElementById('hcBtn').onclick = () => {
+      document.body.classList.toggle('hc');
+    };
+
+    document.getElementById('ttsBtn').onclick = function () {
+      ttsOn = !ttsOn;
+      this.classList.toggle('active');
+    };
+
+    function speak(text) {
+      const u = new SpeechSynthesisUtterance(text);
+      window.speechSynthesis.speak(u);
+    }
+
+    // Start
+    window.onload = init;
+  </script>
+</body>
+
+</html>

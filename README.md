@@ -262,9 +262,7 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) file for
 ## 📧 Contact
 
 For questions or collaboration:
-- Email: your.email@example.com
-- LinkedIn: [Your Profile](https://linkedin.com/in/yourprofile)
-- Project Link: [GitHub Repo](https://github.com/yourusername/sign-language-recognition)
+- Email: adityasaiparise@gmail.com
 
 ---
 
